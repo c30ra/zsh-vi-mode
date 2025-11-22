@@ -670,10 +670,9 @@ function zvm_bindkey() {
     else
       key=${keys:0:1}
 
-      # As any character that is not bound to one of the history control
-      # related functions, or self-insert or self-insert-unmeta, will
-      # cause the mode to be exited To prevent history search, so that
-      # we need to bind keys explicitly.
+      # As any character that is not bound to one of the special
+      # control functions, or self-insert or self-insert-unmeta, will
+      # cause the mode to be exited. We need to bind keys explicitly.
       if [[ "$keymap" == "viins" ]]; then
         bindkey -M isearch "${key}" self-insert
       fi
@@ -3789,9 +3788,7 @@ function zvm_init() {
   zvm_bindkey viins '^[[3~' delete-char
   zvm_bindkey vicmd '^[[3~' delete-char
 
-  # History search
-  zvm_bindkey viins '^R' history-incremental-search-backward
-  zvm_bindkey viins '^S' history-incremental-search-forward
+  # Line history navigation
   zvm_bindkey viins '^P' up-line-or-history
   zvm_bindkey viins '^N' down-line-or-history
 
