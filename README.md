@@ -67,6 +67,8 @@
 
 <img alt="Zsh Vi-mode Demo" src="https://user-images.githubusercontent.com/9413601/105746868-f3734a00-5f7a-11eb-8db5-22fcf50a171b.gif" />
 
+This code has been refactored using Codespaces by Gihub
+
 ## 🤔 Why ZVM?
 
 Maybe you have experienced the default Vi mode in Zsh, after turning on
