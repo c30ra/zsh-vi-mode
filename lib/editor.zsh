@@ -1,6 +1,99 @@
 # editor.zsh - Text editing operations
 # Core VI editing functions: delete, yank, change, put/paste, case transformation
 
+# Get the beginning and end position of selection
+function zvm_selection() {
+  local bpos= epos=
+  if (( MARK > CURSOR )) ; then
+    bpos=$CURSOR epos=$((MARK+1))
+  else
+    bpos=$MARK epos=$((CURSOR+1))
+  fi
+  echo $bpos $epos
+}
+
+# Calculate the region of selection
+function zvm_calc_selection() {
+  local ret=($(zvm_selection))
+  local bpos=${ret[1]} epos=${ret[2]} cpos=
+
+  # Save the current cursor position
+  cpos=$bpos
+
+  # Check if it is visual-line mode
+  if [[ "${1:-$ZVM_MODE}" == $ZVM_MODE_VISUAL_LINE ]]; then
+
+    # Extend the selection to whole line
+    for ((bpos=$bpos-1; $bpos>0; bpos--)); do
+      if [[ "${BUFFER:$bpos:1}" == $'\n' ]]; then
+        bpos=$((bpos+1))
+        break
+      fi
+    done
+    for ((epos=$epos-1; $epos<$#BUFFER; epos++)); do
+      if [[ "${BUFFER:$epos:1}" == $'\n' ]]; then
+        break
+      fi
+    done
+
+    # The begin position must not be less than zero
+    if (( bpos < 0 )); then
+      bpos=0
+    fi
+
+    ###########################################
+    # Calculate the new cursor position, here we consider that
+    # the selection will be delected.
+
+    # Calculate the indent of current cursor line
+    for ((cpos=$((CURSOR-1)); $cpos>=0; cpos--)); do
+      [[ "${BUFFER:$cpos:1}" == $'\n' ]] && break
+    done
+
+    local indent=$((CURSOR-cpos-1))
+
+    # If the selection includes the last line, the cursor
+    # will move up to above line. Otherwise the cursor will
+    # keep in the same line.
+
+    local hpos= # Line head position
+    local rpos= # Reference position
+
+    if (( $epos < $#BUFFER )); then
+      # Get the head position of next line
+      hpos=$((epos+1))
+      rpos=$bpos
+    else
+      # Get the head position of above line
+      for ((hpos=$((bpos-2)); $hpos>0; hpos--)); do
+        if [[ "${BUFFER:$hpos:1}" == $'\n' ]]; then
+          break
+        fi
+      done
+      if (( $hpos < -1 )); then
+        hpos=-1
+      fi
+      hpos=$((hpos+1))
+      rpos=$hpos
+    fi
+
+    # Calculate the cursor postion, the indent must be
+    # less than the line characters.
+    for ((cpos=$hpos; $cpos<$#BUFFER; cpos++)); do
+      if [[ "${BUFFER:$cpos:1}" == $'\n' ]]; then
+        break
+      fi
+      if (( $hpos + $indent <= $cpos )); then
+        break
+      fi
+    done
+
+    cpos=$((rpos+cpos-hpos))
+  fi
+
+  echo $bpos $epos $cpos
+}
+
 # Backward remove characters of an emacs region in the line
 function zvm_backward_kill_region() {
   local bpos=$CURSOR-1 epos=$CURSOR
@@ -534,4 +627,91 @@ function zvm_vi_opp_case() {
   done
   BUFFER="${BUFFER:0:$bpos}${content}${BUFFER:$epos}"
   zvm_exit_visual_mode
+}
+
+# Yank characters of the marked region
+function zvm_yank() {
+  local ret=($(zvm_calc_selection $1))
+  local bpos=$ret[1] epos=$ret[2] cpos=$ret[3]
+  CUTBUFFER=${BUFFER:$bpos:$((epos-bpos))}
+  if [[ ${1:-$ZVM_MODE} == $ZVM_MODE_VISUAL_LINE ]]; then
+    CUTBUFFER=${CUTBUFFER}$'\n'
+  fi
+  CURSOR=$bpos MARK=$epos
+  zvm_clipboard_copy_buffer
+}
+
+# Yank characters of the visual selection (y command)
+function zvm_vi_yank() {
+  zvm_yank
+  zvm_exit_visual_mode ${1:-true}
+}
+
+# Delete characters of the visual selection (d/x command)
+function zvm_vi_delete() {
+  zvm_replace_selection
+  zvm_exit_visual_mode ${1:-true}
+}
+
+# Change characters of visual selection and enter insert mode (c command)
+function zvm_vi_change() {
+  local ret=($(zvm_calc_selection))
+  local bpos=$ret[1] epos=$ret[2]
+
+  CUTBUFFER=${BUFFER:$bpos:$((epos-bpos))}
+
+  # Check if it is visual line mode
+  if [[ $ZVM_MODE == $ZVM_MODE_VISUAL_LINE ]]; then
+    CUTBUFFER=${CUTBUFFER}$'\n'
+  fi
+
+  BUFFER="${BUFFER:0:$bpos}${BUFFER:$epos}"
+  CURSOR=$bpos
+  zvm_clipboard_copy_buffer
+
+  # Return when it's repeating mode
+  $ZVM_REPEAT_MODE && return
+
+  # Reset the repeat commands
+  if [[ $ZVM_MODE != $ZVM_MODE_NORMAL ]]; then
+    local npos=0 ncount=0 ccount=0
+    # Count the amount of newline character and the amount of
+    # characters after the last newline character.
+    while :; do
+      # Forward find the last newline character's position
+      npos=$(zvm_substr_pos $CUTBUFFER $'\n' $npos)
+      if [[ $npos == -1 ]]; then
+        if (($ncount == 0)); then
+          ccount=$#CUTBUFFER
+        fi
+        break
+      fi
+      npos=$((npos+1))
+      ncount=$(($ncount + 1))
+      ccount=$(($#CUTBUFFER - $npos))
+    done
+    zvm_reset_repeat_commands $ZVM_MODE c $ncount $ccount
+  fi
+
+  zvm_exit_visual_mode false
+  zvm_select_vi_mode $ZVM_MODE_INSERT ${1:-true}
+}
+
+# Change characters from cursor to the end of current line (C command)
+function zvm_vi_change_eol() {
+  local bpos=$CURSOR epos=$CURSOR
+
+  # Find the end of current line
+  for ((; $epos<$#BUFFER; epos++)); do
+    if [[ "${BUFFER:$epos:1}" == $'\n' ]]; then
+      break
+    fi
+  done
+
+  CUTBUFFER=${BUFFER:$bpos:$((epos-bpos))}
+  BUFFER="${BUFFER:0:$bpos}${BUFFER:$epos}"
+
+  zvm_clipboard_copy_buffer
+  zvm_reset_repeat_commands $ZVM_MODE c 0 $#CUTBUFFER
+  zvm_select_vi_mode $ZVM_MODE_INSERT
 }

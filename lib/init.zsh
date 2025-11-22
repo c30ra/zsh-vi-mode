@@ -14,7 +14,9 @@ function zvm_zle-line-pre-redraw() {
     [[ "$TERMINAL_EMULATOR" == "JetBrains-JediTerm" ]] && zle redisplay
   fi
   zvm_update_highlight
-  zvm_update_repeat_commands
+  if command -v zvm_update_repeat_commands >/dev/null 2>&1; then
+    zvm_update_repeat_commands
+  fi
 }
 
 # Start every prompt in the correct vi mode
@@ -47,6 +49,12 @@ function zvm_zle-line-finish() {
   local shape=$(zvm_cursor_style $ZVM_CURSOR_USER_DEFAULT)
   zvm_set_cursor $shape
   zvm_switch_keyword_history=()
+}
+
+# No-op widget to disable command mode and search mode
+function zvm_noop() {
+  # Do nothing - intentionally disabled
+  return
 }
 
 # Initialize vi-mode for widgets, keybindings, etc.
@@ -127,6 +135,9 @@ function zvm_init() {
   # Open URL under cursor
   zvm_define_widget zvm_open_under_cursor
 
+  # No-op widget to disable command/search modes
+  zvm_define_widget zvm_noop
+
   # Override standard widgets
   zvm_define_widget zle-line-pre-redraw zvm_zle-line-pre-redraw
 
@@ -206,6 +217,12 @@ function zvm_init() {
   # Switch keyword
   zvm_bindkey vicmd '^A' zvm_switch_keyword
   zvm_bindkey vicmd '^X' zvm_switch_keyword
+
+  # Disable command mode (:) and search mode (/) by binding to no-op
+  zvm_bindkey vicmd ':' zvm_noop
+  zvm_bindkey vicmd '/' zvm_noop
+  zvm_bindkey visual ':' zvm_noop
+  zvm_bindkey visual '/' zvm_noop
 
   # Keybindings for escape key and some specials
   local exit_oppend_mode_widget=

@@ -46,8 +46,18 @@ if [[ -d "$ZVM_ROOT/lib" ]]; then
     source "$ZVM_ROOT/lib/mode-manager.zsh"
   fi
 
+  # Load repeat module early (needed by init's zvm_zle-line-pre-redraw)
+  if [[ -f "$ZVM_ROOT/lib/repeat.zsh" ]]; then
+    source "$ZVM_ROOT/lib/repeat.zsh"
+  fi
+
+  # Load editor module early (defines zvm_selection and zvm_calc_selection)
+  if [[ -f "$ZVM_ROOT/lib/editor.zsh" ]]; then
+    source "$ZVM_ROOT/lib/editor.zsh"
+  fi
+
   # Load other modules if they exist (they'll be added as we refactor)
-  for module in "$ZVM_ROOT"/lib/{keybindings,editor,repeat,surround,keywords,ui,clipboard,url,navigation,handlers,zle-hooks,init}.zsh; do
+  for module in "$ZVM_ROOT"/lib/{keybindings,surround,keywords,ui,clipboard,url,navigation,handlers,zle-hooks,init}.zsh; do
     [[ -f "$module" ]] && source "$module"
   done
 else
