@@ -160,6 +160,11 @@ function zvm_select_vi_mode() {
       ;;
   esac
 
+  # Update terminal with current mode indicator
+  if command -v zvm_update_terminal_mode >/dev/null 2>&1; then
+    zvm_update_terminal_mode
+  fi
+
   zvm_exec_commands 'after_select_vi_mode'
 
   $reset_prompt && zvm_postpone_reset_prompt false true

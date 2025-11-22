@@ -41,7 +41,12 @@ if [[ -d "$ZVM_ROOT/lib" ]]; then
   # Load utilities (depends on constants)
   source "$ZVM_ROOT/lib/utils.zsh"
 
-  # Load mode manager (depends on constants, utils)
+  # Load UI module early (needed for zvm_update_terminal_mode in mode-manager)
+  if [[ -f "$ZVM_ROOT/lib/ui.zsh" ]]; then
+    source "$ZVM_ROOT/lib/ui.zsh"
+  fi
+
+  # Load mode manager (depends on constants, utils, ui for terminal mode updates)
   if [[ -f "$ZVM_ROOT/lib/mode-manager.zsh" ]]; then
     source "$ZVM_ROOT/lib/mode-manager.zsh"
   fi
@@ -57,7 +62,7 @@ if [[ -d "$ZVM_ROOT/lib" ]]; then
   fi
 
   # Load other modules if they exist (they'll be added as we refactor)
-  for module in "$ZVM_ROOT"/lib/{keybindings,surround,keywords,ui,clipboard,url,navigation,handlers,zle-hooks,init}.zsh; do
+  for module in "$ZVM_ROOT"/lib/{keybindings,surround,keywords,clipboard,url,navigation,handlers,zle-hooks,init}.zsh; do
     [[ -f "$module" ]] && source "$module"
   done
 else
