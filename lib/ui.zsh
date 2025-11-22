@@ -172,3 +172,37 @@ function zvm_update_highlight() {
       ;;
   esac
 }
+
+# Update terminal mode indicator for terminals like WezTerm
+# Sends OSC sequence to indicate current VI mode
+function zvm_update_terminal_mode() {
+  # Skip if not supported or in non-interactive environment
+  [[ -z "$TERM" ]] && return
+  [[ "$TERM" == "dumb" ]] && return
+  
+  local mode_name=""
+  case "$ZVM_MODE" in
+    $ZVM_MODE_NORMAL)
+      mode_name="NORMAL"
+      ;;
+    $ZVM_MODE_INSERT)
+      mode_name="INSERT"
+      ;;
+    $ZVM_MODE_VISUAL)
+      mode_name="VISUAL"
+      ;;
+    $ZVM_MODE_VISUAL_LINE)
+      mode_name="VISUAL-LINE"
+      ;;
+    $ZVM_MODE_REPLACE)
+      mode_name="REPLACE"
+      ;;
+  esac
+  
+  # Send OSC 1337 (iTerm) and other compatible sequences for mode indication
+  # Format: OSC 1337 ; SetUserVar=name=value ST
+  if [[ -n "$mode_name" ]]; then
+    # For terminals that support it, send the mode via OSC sequence
+    printf "\033]1337;SetUserVar=zvm_mode=%s\007" "$mode_name"
+  fi
+}
