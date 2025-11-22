@@ -213,7 +213,21 @@
 # the command for opening file path (default is $ZVM_OPEN_CMD)
 #
 
-# Avoid sourcing plugin multiple times
+# If a modular `lib/loader.zsh` exists next to this file, prefer it.
+# This allows users to `source zsh-vi-mode.zsh` while we maintain a
+# modular layout in `lib/` during refactor.
+ZVM_SCRIPT_PATH="${(%):-%N}"
+if [[ -z "$ZVM_SCRIPT_PATH" || "$ZVM_SCRIPT_PATH" == "-" ]]; then
+  ZVM_SCRIPT_PATH="$0"
+fi
+ZVM_SCRIPT_DIR="${ZVM_SCRIPT_PATH:A:h}"
+
+if [[ -f "$ZVM_SCRIPT_DIR/lib/loader.zsh" ]]; then
+  source "$ZVM_SCRIPT_DIR/lib/loader.zsh"
+  return
+fi
+
+# Avoid sourcing plugin multiple times (fallback to monolithic behavior)
 command -v 'zvm_version' >/dev/null && return
 
 # Plugin information
