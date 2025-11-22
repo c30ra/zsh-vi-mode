@@ -203,3 +203,50 @@ function zvm_repeat_replace_chars() {
     fi
   done
 }
+
+# Updates repeat commands
+function zvm_update_repeat_commands() {
+  # We don't need to update the repeat commands if current
+  # mode is already the repeat mode.
+  $ZVM_REPEAT_MODE && return
+
+  # We don't need to update the repeat commands if it is
+  # reseting the repeat commands.
+  if $ZVM_REPEAT_RESET; then
+    ZVM_REPEAT_RESET=false
+    return
+  fi
+
+  # We update the repeat commands when it's the insert mode
+  [[ $ZVM_MODE == $ZVM_MODE_INSERT ]] || return
+
+  local char=$KEYS
+
+  # If current key is an arrow key, we should do something
+  if [[ "$KEYS" =~ '\\e\[[ABCD]' ]]; then
+    # If last key is also an arrow key, we just replace it
+    if [[ ${ZVM_REPEAT_COMMANDS[-1]} =~ '\\e\[[ABCD]' ]]; then
+      ZVM_REPEAT_COMMANDS=(${ZVM_REPEAT_COMMANDS[@]:0:-1})
+    fi
+  else
+    # If last command is arrow key movement, we should reset
+    # the repeat commands with i(nsert) command
+    if [[ ${ZVM_REPEAT_COMMANDS[-1]} =~ '\\e\[[ABCD]' ]]; then
+      zvm_reset_repeat_commands $ZVM_MODE_NORMAL i
+    fi
+    char=${BUFFER[$CURSOR]}
+  fi
+
+  # If current key is backspace key, we should remove last
+  # one, until it has only the mode and inital command
+  if [[ "$KEYS" == '\x7f' || "$KEYS" == '127' || "$KEYS" == '\177' ]]; then
+    if ((${#ZVM_REPEAT_COMMANDS[@]} > 2)) &&
+      [[ ${ZVM_REPEAT_COMMANDS[-1]} != '\x7f' ]]; then
+      ZVM_REPEAT_COMMANDS=(${ZVM_REPEAT_COMMANDS[@]:0:-1})
+    elif (($#LBUFFER > 0)); then
+      ZVM_REPEAT_COMMANDS+=($KEYS)
+    fi
+  else
+    ZVM_REPEAT_COMMANDS+=($char)
+  fi
+}
