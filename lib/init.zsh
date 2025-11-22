@@ -180,6 +180,11 @@ function zvm_init() {
   zvm_bindkey vicmd 'I'  zvm_insert_bol
   zvm_bindkey vicmd 'A'  zvm_append_eol
 
+  # Disable j and k history navigation in normal mode (no-op for now)
+  # User can override these later if needed
+  zvm_bindkey vicmd 'j' zvm_noop
+  zvm_bindkey vicmd 'k' zvm_noop
+
   # Other key bindings
   zvm_bindkey vicmd  'v' zvm_enter_visual_mode
   zvm_bindkey vicmd  'V' zvm_enter_visual_mode
